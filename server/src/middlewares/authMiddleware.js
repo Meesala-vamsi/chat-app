@@ -5,7 +5,11 @@ const User = require("../models/user.model");
 
 const authentication = asyncHandler(async (req,res, next) => {
     const authHead = req.headers.authorization;
-    const accessToken = authHead.split(" ")[1];
+    const accessToken = authHead?.split(" ")[1];
+
+    if(!accessToken){
+        return next(new ErrorResponse("Invalid access token", 401))
+    }
 
     const decodedToken = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET_KEY)
     if(decodedToken.userId){

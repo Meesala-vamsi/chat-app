@@ -11,6 +11,7 @@ const authRouter = require("./src/routes/auth.routes");
 const cookieParser = require("cookie-parser");
 const errorHandler = require("./src/utils/globalErrorHandler");
 const conversationRoute = require("./src/routes/conversation.routes");
+const messageRoutes = require("./src/routes/messages.routes");
 
 dotenv.config()
 
@@ -34,6 +35,7 @@ app.use(cors({
 app.use(cookieParser())
 app.use("/api/auth", authRouter)
 app.use("/api/conversation", conversationRoute)
+app.use("/api/message", messageRoutes);
 
 io.on("connection", (socket) => {
     console.log("Socket connected")
