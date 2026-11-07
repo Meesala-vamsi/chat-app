@@ -8,9 +8,11 @@ const conversationSchema = new mongoose.Schema({
         required: [true, "Conversation type is required"],
         default: "direct"
     },
-    participants: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+    participants: {
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }],
         required: [true, "Conversation participants are required."],
         validate: {
             validator: function (value) {
@@ -18,7 +20,7 @@ const conversationSchema = new mongoose.Schema({
             },
             message: "A conversation must have at least two participants."
         }
-    }],
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -48,6 +50,15 @@ const conversationSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+conversationSchema.index(
+    { conversationKey: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { type: "direct" }
+    }
+);
+
 const Conversation = mongoose.model("Conversation", conversationSchema);
+
 
 module.exports = Conversation;
