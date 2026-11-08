@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"))
 const LoginPage = lazy(() => import("./pages/LoginPage"))
@@ -8,9 +8,23 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"))
 const PublicRoute = lazy(() => import("./components/PublicRoute"))
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import {io} from "socket.io-client"
+import {useSelector} from "react-redux"
+import { loginAccessToken } from './redux/selectors/auth.selector'
 
 const App = () => {
+  const accessToken = useSelector(loginAccessToken)
+  const socket =  io(import.meta.env.VITE_BACKEND_URL, {
+    auth: {
+      token: accessToken
+    }
+  })
+  useEffect(() => {
+    socket.on("connect", () => {})
+    socket.on(`notify:}`, () => {
+      console.log("Notification received")
+    })
+  }, [])
   return (
     <div>
       <Suspense fallback={<div>Loading.....</div>}>

@@ -15,6 +15,7 @@ const { socketIo, getIo } = require("./src/utils/socket");
 const jwt = require("jsonwebtoken");
 const ErrorResponse = require("./src/utils/errorResponse");
 const Conversation = require("./src/models/conversation.model");
+const userRoute = require("./src/routes/user.routes");
 
 dotenv.config()
 
@@ -50,6 +51,7 @@ app.use(cookieParser())
 app.use("/api/auth", authRouter)
 app.use("/api/conversation", conversationRoute)
 app.use("/api/message", messageRoutes);
+app.use("/api/user", userRoute);
 
 io.on("connection", (socket) => {
     const userId = socket.userId
