@@ -20,7 +20,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
     })
 
     return res.status(201).json({
-        status: false,
+        status: true,
         message: "Account created successfully."
     })
 })
@@ -136,5 +136,29 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
             user: session.userId
         }
     })
+})
+
+
+exports.logout = asyncHandler(async(req,res,next) => {
+    const userId = req.user._id.toString();
+
+    const session = await Session.find({userId, isRevoked: false});
+
+    if(!session){
+        return res.status(200).json({
+            status: true,
+            message: "No active session for this account"
+        })
+    }
+
+    await Session.updateMany({userId}, {isRevoked: true});
+
+    res.clearCookie("refreshToken", refreshCookieOptions);
+
+    return res.status(200).json({
+        status: true,
+        message: "Logout successfully."
+    })
+
 
 })
