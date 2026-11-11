@@ -4,52 +4,81 @@ import axios from "axios"
 
 
 const initialState = {
-    directConversations:[],
-    groupConversations: [],
+    conversations: [],
     isLoading: false,
     error: null
 }
 
 
-export const fetchConversations = createAsyncThunk("chat/conversations", async (_, thunkApi) => {
-    try{   
+export const fetchConversations = createAsyncThunk("chat/fetchConversations", async (_, thunkApi) => {
+    try {
         const token = thunkApi.getState().auth.accessToken
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/conversation`,{
-            headers:{
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/conversation`, {
+            headers: {
                 Authorization: `Bearer ${token}`
             }
         });
         return response.data;
-    }catch(error){
+    } catch (error) {
         return thunkApi.rejectWithValue({
             status: false,
-            message: error.payload.data.message || "Failed to fetch conversations"
+            message: error.response?.data?.message || "Failed to fetch conversations"
         })
     }
 })
 
+export const createConversation = createAsyncThunk("chat/createConversations", async (conversationData, thunkApi) => {
+    try {
+        const token = thunkApi.getState().auth.accessToken
+        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/conversation`, conversationData,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+        return response.data;
+    } catch (error) {
+        return thunkApi.rejectWithValue({
+            status: false,
+            message: error.response?.data?.message || "Failed to create conversation"
+        })
+    }
+})
 
 const conversation = createSlice({
     name: "conversation",
     initialState,
-    reducers:{},
+    reducers: {},
     extraReducers: (builder) => {
-        builder.addCase(fetchConversations.pending, (state) => {
-            state.isLoading=true;
-        })
-        .addCase(fetchConversations.fulfilled, (state, payload) => {
-            console.log("🚀 ~ payload:",payload.payload, payload?.data?.conversations.filter((eachConversation) => eachConversation))
-            
-            state.isLoading=false;
-            state.directConversations = payload?.payload?.data?.conversations.filter((eachConversation) => eachConversation.type === "direct"),
-            state.groupConversations = payload?.data?.conversations.filter((eachConversation) => eachConversation.type === "group")
-        })
-        .addCase(fetchConversations.rejected, (state,payload) => {
-            state.isLoading=false;
-            state.error = payload.message;
-        })
+        builder
+            .addCase(fetchConversations.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(fetchConversations.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.conversations = action.payload?.data?.conversations ?? [];
+            })
+            .addCase(fetchConversations.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload?.message || action.error.message;
+            })
+            .addCase(createConversation.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(createConversation.fulfilled, (state, action) => {
+                state.isLoading = false;
+                // add the new conversation to the top of the list if it is not there already
+                const newConversation = action.payload?.data?.conversation;
+                const alreadyInList = state.conversations.some((conversation) => conversation._id === newConversation?._id);
+                if (newConversation && !alreadyInList) {
+                    state.conversations.unshift(newConversation);
+                }
+            })
+            .addCase(createConversation.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload?.message || action.error.message;
+            })
     }
 })
 
 export default conversation.reducer;
-

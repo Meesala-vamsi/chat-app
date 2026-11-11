@@ -3,3 +3,4 @@ export const getUsersLoading = (state) => state.user.isLoading;
 export const getUsersError = (state) => state.user.error;
 export const getUsersHasMore = (state) => state.user.hasMore;
 export const getUsersPage = (state) => state.user.page;
+export const getOnlineUsers = (state) => state.user.onlineUserIds;

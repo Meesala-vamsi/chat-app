@@ -7,14 +7,14 @@ import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import debounce from 'lodash.debounce'
 import UserSearchResults from './UserSearchResults'
 import { clearUsers, searchUsers } from '../../redux/slices/userSlice'
-import { conversations, currentUser, onlineUserIds } from '../../data/mockChat'
+// import { onlineUserIds } from '../../data/mockChat'
 import { colorFor, conversationTitle, formatListTime, hasUnreadLast, initialsOf, lastMessagePreview, otherUser } from '../../utils/chatHelpers'
 import { useDispatch, useSelector } from 'react-redux'
-import { getDirectConversations } from '../../redux/selectors/conversation.selector'
 import { fetchConversations } from '../../redux/slices/conversationSlice'
+import { getUserDetails } from '../../redux/selectors/auth.selector'
+import { getConversations } from '../../redux/selectors/conversation.selector'
+import { getOnlineUsers } from '../../redux/selectors/user.selector'
 
-// const direct = conversations.filter((c) => c.type === 'direct')
-const groupConvs = conversations.filter((c) => c.type === 'group')
 
 const Section = ({ title }) => (
   <div className="flex items-center justify-between px-5 mt-4 mb-2">
@@ -45,10 +45,16 @@ const Row = ({ selected, onClick, avatar, name, last, time, unread }) => (
 )
 
 const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
-  const direct = useSelector(getDirectConversations);
+  const conversations = useSelector(getConversations);
   const dispatch = useDispatch();
   const [search, setSearch] = useState('')
   const searchTerm = search.trim()
+  const directConversations = conversations.filter((conversation) => conversation.type === 'direct')
+  const groupConversations = conversations.filter((conversation) => conversation.type === 'group')
+  const currentUser = useSelector(getUserDetails);
+  const onlineUserIds = useSelector(getOnlineUsers)
+  console.log("🚀 ~ ChatList ~ onlineUserIds:", onlineUserIds)
+  console.log("🚀 ~ ChatList ~ currentUser:", currentUser)
 
   // lodash debounce: the API is called 400ms after the user stops typing
   const searchUsersDebounced = useMemo(
@@ -65,6 +71,12 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
     }
     return () => searchUsersDebounced.cancel()
   }, [searchTerm, searchUsersDebounced, dispatch])
+
+  // after picking a searched user: tell the parent, clear the search box and show all conversations again
+  const handleSelectUser = (user) => {
+    onSelectUser?.(user)
+    setSearch('')
+  }
 
   useEffect(() =>{
     dispatch(fetchConversations())
@@ -85,10 +97,10 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto pb-4">
-        {searchTerm ? <UserSearchResults search={searchTerm} onSelectUser={onSelectUser} /> : (<>
+        {searchTerm ? <UserSearchResults search={searchTerm} onSelectUser={handleSelectUser} /> : (<>
       <Section title="Chats" />
         <div className="px-2">
-          {direct?.map((c) => {
+          {directConversations.map((c) => {
             const other = otherUser(c, currentUser)
             const name = conversationTitle(c, currentUser)
             return (
@@ -96,9 +108,9 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
                 last={lastMessagePreview(c, currentUser)} time={formatListTime(c.lastMessageAt)}
                 unread={hasUnreadLast(c, currentUser) ? 1 : 0}
                 avatar={
-                  <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} variant="dot" invisible={!onlineUserIds.includes(other._id)}
+                  <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} variant="dot" invisible={!onlineUserIds.includes(other?._id)}
                     sx={{ '& .MuiBadge-badge': { backgroundColor: '#22c55e', color: '#22c55e', border: '2px solid #fff' } }}>
-                    <Avatar sx={{ bgcolor: colorFor(other._id), width: 52, height: 52 }}>{initialsOf(name)}</Avatar>
+                    <Avatar sx={{ bgcolor: colorFor(other?._id), width: 52, height: 52 }}>{initialsOf(name)}</Avatar>
                   </Badge>} />
             )
           })}
@@ -106,7 +118,7 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
 
         <Section title="Groups" />
         <div className="px-2">
-          {groupConvs.map((g) => (
+          {groupConversations.map((g) => (
             <Row key={g._id} selected={activeId === g._id} onClick={() => onSelect(g._id)} name={conversationTitle(g, currentUser)}
               last={lastMessagePreview(g, currentUser)} time={formatListTime(g.lastMessageAt)} unread={hasUnreadLast(g, currentUser) ? 1 : 0}
               avatar={<Avatar src={g.groupImage || undefined} sx={{ bgcolor: '#e0e7ff', color: '#4f46e5', width: 52, height: 52 }}><GroupsRoundedIcon /></Avatar>} />

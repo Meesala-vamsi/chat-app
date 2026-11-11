@@ -11,3 +11,34 @@ body {
 ::-webkit-scrollbar{
     display: none;
 }
+
+/* typing indicator: dots rise and fade in a wave, bubble fades in */
+@keyframes typing-wave {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-5px); opacity: 1; }
+}
+
+@keyframes typing-appear {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* new chat bubbles slide up and fade in */
+@keyframes message-appear {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* small text (header status) fades in when it changes */
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-message-appear { animation: message-appear 0.25s ease-out; }
+.animate-fade-in { animation: fade-in 0.25s ease-out; }
+
+/* respect the user's "reduce motion" setting */
+@media (prefers-reduced-motion: reduce) {
+    .animate-message-appear, .animate-fade-in { animation: none; }
+}

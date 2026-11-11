@@ -21,7 +21,7 @@ const UserSearchResults = ({ search, onSelectUser }) => {
 
       {users.map((user) => (
         <button key={user._id} onClick={() => onSelectUser?.(user)}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left hover:bg-slate-50 transition">
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left hover:bg-slate-50 transition cursor-pointer">
           <Avatar sx={{ bgcolor: colorFor(user._id), width: 48, height: 48 }}>{initialsOf(fullName(user))}</Avatar>
           <div className="min-w-0">
             <p className="font-semibold text-slate-900 truncate">{fullName(user)}</p>

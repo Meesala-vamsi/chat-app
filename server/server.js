@@ -16,6 +16,9 @@ const jwt = require("jsonwebtoken");
 const ErrorResponse = require("./src/utils/errorResponse");
 const Conversation = require("./src/models/conversation.model");
 const userRoute = require("./src/routes/user.routes");
+const Message = require("./src/models/message.model");
+const User = require("./src/models/user.model");
+const { joinConversation, markMessagesAsRead, onTyping } = require("./src/utils/socketHandlers");
 
 dotenv.config()
 
@@ -25,7 +28,7 @@ const io = getIo()
 
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
-    if(!token){
+    if (!token) {
         return next(new Error("Invalid token."))
     }
 
@@ -53,45 +56,69 @@ app.use("/api/conversation", conversationRoute)
 app.use("/api/message", messageRoutes);
 app.use("/api/user", userRoute);
 
+const onlineUserIds = new Map()
+
 io.on("connection", (socket) => {
     const userId = socket.userId
     console.log("🚀 ~ userId:", userId)
     socket.join(`user:${userId}`)
+    console.log("Socket connected")
+    let sockets = new Set();
+    console.log("🚀 ~ onlineUserIds.get(userId):", onlineUserIds.get(userId))
+    if(onlineUserIds.get(userId)){
+        sockets.add(onlineUserIds.get(userId))
+    }
 
+    console.log("🚀 ~ sockets:", Boolean(sockets))
+    if(sockets.size<=0){
+        sockets = new Set();
+        onlineUserIds.set(userId, socket.id)
+    }
+
+    const usersObj = Object.fromEntries(onlineUserIds)
+    console.log("🚀 ~ usersObj:", usersObj)
+    io.emit("onlineUsers", {onlineUserIds: usersObj})
+    // socket.broadcast.emit("onlineUsers", {onlineUserIds: usersObj})
+    sockets.add(socket.id)
     // console.log([...socket.rooms], "hello sockets")
     socket.on("joinConversation", async (conversationId, callback) => {
-        if(!mongoose.Types.ObjectId.isValid(conversationId)){
-            return callback({
-                status: false,
-                message: "Invalid conversation."
-            })
-        }
-
-        const userId = socket.userId;
-        const conversation = await Conversation.findOne({
-            _id: conversationId,
-            participants: userId
-        })
-
-        if(!conversation){
-            return callback({
-                status: false,
-                message: "Conversation not found"
-            })
-        }
-
-        socket.join(`conversation:${conversationId}`);
-        return callback({
-            status: true,
-            message: "Joined in conversation successfully."
-        })
+        return joinConversation(conversationId, callback, socket)
     });
 
-    socket.on("leaveConversation", (conversationId)=> {
+    socket.on("leaveConversation", (conversationId) => {
         socket.leave(`conversation:${conversationId}`)
     })
 
+    socket.on("markMessagesAsRead", async (conversationId, callback) => {
+        return markMessagesAsRead(conversationId, callback, io)
+    });
+
+    // Tell the other people in the conversation that this user is typing.
+    // The user comes from the verified token (socket.userId), never from the client payload.
+    socket.on("onTyping", async (data, callback) => {
+        return onTyping(data, callback, socket);
+    })
+
+    console.log("🚀 ~ onlineUserIds:", onlineUserIds)
+
+    socket.on("onStopTyping", (data) => {
+        const conversationId = data?.conversationId
+        socket.to(`conversation:${conversationId}`).emit("stopTyping", { conversationId, userId: socket.userId })
+    })
+
     socket.on("disconnect", () => {
+        const sockets = new Set();
+        sockets.add(onlineUserIds.get(userId))
+        if(!sockets){
+            return
+        }
+        sockets.delete(socket.id)
+        if(sockets.size <= 0){
+            onlineUserIds.delete(userId)
+            const onlineObj = Object.fromEntries(onlineUserIds)
+            socket.broadcast.emit("offlineUsers", {onlineUserIds:onlineObj})
+        }
+
         console.log("Socket disconnected...")
     })
 })

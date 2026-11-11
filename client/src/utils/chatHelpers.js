@@ -44,3 +44,12 @@ export const formatListTime = (iso) => {
   if (days < 7) return d.toLocaleDateString([], { weekday: "short" })
   return d.toLocaleDateString([], { day: "numeric", month: "short" })
 }
+
+export const formatDayLabel = (iso) => {
+  const messageDate = new Date(iso)
+  const daysAgo = Math.round((new Date(new Date().toDateString()) - new Date(messageDate.toDateString())) / 86400000)
+  if (daysAgo <= 0) return "Today"
+  if (daysAgo === 1) return "Yesterday"
+  if (daysAgo < 7) return messageDate.toLocaleDateString([], { weekday: "long" })
+  return messageDate.toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" })
+}

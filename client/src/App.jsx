@@ -9,22 +9,38 @@ const PublicRoute = lazy(() => import("./components/PublicRoute"))
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {io} from "socket.io-client"
-import {useSelector} from "react-redux"
+import {useDispatch, useSelector} from "react-redux"
 import { loginAccessToken } from './redux/selectors/auth.selector'
-
+import { socket } from './utils/socket'
+import { onlineUsers } from './redux/slices/userSlice'
 const App = () => {
   const accessToken = useSelector(loginAccessToken)
-  const socket =  io(import.meta.env.VITE_BACKEND_URL, {
-    auth: {
-      token: accessToken
-    }
-  })
+  const dispatch = useDispatch()
+  
   useEffect(() => {
-    socket.on("connect", () => {})
-    socket.on(`notify:}`, () => {
-      console.log("Notification received")
-    })
-  }, [])
+    const onlineUsersCallback = (response) => {
+      const {onlineUserIds} = response;
+      dispatch(onlineUsers({onlineUsers:Object.keys(onlineUserIds), type: "online"}))
+    }
+      const offlineUsersCallback = (response) => {
+        const {onlineUserIds} = response;
+        dispatch(onlineUsers({type:"offline", onlineUsers: Object.keys(onlineUserIds)}))
+      }
+    if(accessToken){
+      socket.auth = {token: accessToken};
+      socket.connect()
+      socket.on("offlineUsers", offlineUsersCallback)
+      socket.on("onlineUsers", onlineUsersCallback)
+    } else{
+      socket.disconnect()
+    }
+
+    return () => {
+      socket.off("onlineUsers", onlineUsersCallback)
+      socket.off("offlineUsers", offlineUsersCallback)
+      socket.disconnect()
+    }
+  }, [accessToken])
   return (
     <div>
       <Suspense fallback={<div>Loading.....</div>}>

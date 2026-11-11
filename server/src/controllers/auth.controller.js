@@ -74,6 +74,7 @@ exports.login = asyncHandler(async (req, res, next) => {
         data: {
             accessToken: token,
             user: {
+                "_id": user._id,
                 "firstName": user.firstName,
                 "lastName": user.lastName,
                 "email": user.email

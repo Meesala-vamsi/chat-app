@@ -4,6 +4,7 @@ const { asyncHandler } = require("../utils/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const Message = require("../models/message.model");
 const { validateId } = require("../utils/validations");
+const { getIo } = require("../utils/socket");
 
 exports.fetchMessages = asyncHandler(async (req, res, next) => {
     const { conversationId } = req.params;
@@ -33,6 +34,22 @@ exports.fetchMessages = asyncHandler(async (req, res, next) => {
     if (before) {
         filterQuery["_id"] = { "$lt": before }
     }
+
+    await Message.updateMany(
+        {
+            conversationId,
+            senderId: { $ne: currentUserId },
+            "readBy.userId": { $ne: currentUserId }
+        },
+        {
+            $push: {
+                readBy: {
+                    userId: currentUserId,
+                    readAt: new Date()
+                }
+            }
+        }
+    );
 
     const messages = await Message.find(filterQuery).populate("senderId", "-password").limit(limit + 1).sort({ _id: -1 })
     const hasMore = messages.length > limit;
@@ -97,16 +114,23 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
         conversationId
     })
 
+    const populateMessage = await message.populate("senderId", "-password")
+
+    const io = getIo()
+
+
     await Conversation.findByIdAndUpdate(conversationId, {
         lastMessage: message._id,
         lastMessageAt: message.createdAt
     }, { new: true })
 
+    io.to(`conversation:${conversationId}`).emit("newMessage", populateMessage)
+
     return res.status(201).json({
         status: true,
         message: "Message posted successfully.",
         data: {
-            message
+            message: populateMessage
         }
     })
 

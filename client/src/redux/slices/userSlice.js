@@ -6,7 +6,8 @@ const initialState = {
     page: 1,
     hasMore: false,
     isLoading: false,
-    error: null
+    error: null,
+    onlineUserIds: []
 }
 
 // page 1 replaces the list, later pages are appended (see reducer below)
@@ -27,7 +28,12 @@ const userSlice = createSlice({
     name: "user",
     initialState,
     reducers: {
-        clearUsers: () => initialState
+        // keep presence data: it comes from the socket, not from the search
+        clearUsers: (state) => ({ ...initialState, onlineUserIds: state.onlineUserIds }),
+        
+        onlineUsers: (state, { payload }) => {
+            state.onlineUserIds = payload.onlineUsers
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -49,5 +55,5 @@ const userSlice = createSlice({
     }
 })
 
-export const { clearUsers } = userSlice.actions
+export const { clearUsers, onlineUsers } = userSlice.actions
 export default userSlice.reducer
