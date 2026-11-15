@@ -20,6 +20,8 @@ const Message = require("./src/models/message.model");
 const User = require("./src/models/user.model");
 const { joinConversation, markMessagesAsRead, onTyping } = require("./src/utils/socketHandlers");
 
+const { startHealthCron } = require("./src/utils/healthCron");
+
 dotenv.config()
 
 socketIo(server)
@@ -50,6 +52,11 @@ app.use(cors({
     credentials: true
 }))
 app.use(cookieParser())
+
+// Public health check (no auth)
+app.get("/api/health", (req, res) => {
+    res.status(200).json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() })
+})
 
 app.use("/api/auth", authRouter)
 app.use("/api/conversation", conversationRoute)
@@ -122,6 +129,7 @@ const port = process.env.PORT || 3001;
 
 server.listen(port, () => {
     console.log(`Server listening on port ${port}`)
+    startHealthCron(port)
 })
 
 mongoose.connect(process.env.MONGO_URI)

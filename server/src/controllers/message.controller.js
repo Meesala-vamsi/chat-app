@@ -139,7 +139,6 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
             [`unreadCounts.${receiverId[0]}`]: 1
         }
     }, {new: true})
-    console.log("🚀 ~ updatedData:", updatedData)
 
     io.to(`user:${receiverId[0]}`).emit("unreadCount", {
         conversationId,
