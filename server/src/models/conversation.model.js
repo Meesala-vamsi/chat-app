@@ -47,6 +47,11 @@ const conversationSchema = new mongoose.Schema({
         type: String,
         unique: true,
         sparse: true
+    },
+    unreadCounts: {
+        type: Map,
+        of: Number,
+        default: {}
     }
 }, { timestamps: true });
 

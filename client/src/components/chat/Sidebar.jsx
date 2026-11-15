@@ -32,7 +32,7 @@ const Sidebar = ({ active = 'Chats', onSelect, onLogout, className = '' }) => {
   const conversations = useSelector(getConversations);
   const items = [
     { label: 'Chats', icon: ChatBubbleRoundedIcon, count: (conversations && conversations.length > 0) ? conversations.length : 0 },
-    { label: 'Groups', icon: GroupsRoundedIcon, count: 1 },
+    { label: 'Groups', icon: GroupsRoundedIcon, count: (conversations || []).filter((c) => c.type === 'group').length },
     { label: 'Contacts', icon: PersonRoundedIcon },
     { label: 'Settings', icon: SettingsRoundedIcon },
   ]
@@ -65,7 +65,7 @@ const Sidebar = ({ active = 'Chats', onSelect, onLogout, className = '' }) => {
               className={`relative flex flex-col md:flex-row items-center justify-center lg:justify-start gap-0.5 md:gap-3 px-3 py-1.5 md:py-3 lg:px-4 rounded-xl transition ${on ? sidebarTheme.activeItem : `${sidebarTheme.hoverItem} ${sidebarTheme.mutedText}`}`}>
               <Icon fontSize="small" />
               <span className="text-[10px] md:hidden lg:inline lg:text-base lg:flex-1 lg:text-left">{label}</span>
-              {count && (
+              {count > 0 && (
                 <span className={`absolute top-0.5 right-1 md:top-1 md:right-1 lg:static text-[10px] lg:text-xs min-w-5 h-5 lg:w-6 lg:h-6 px-1 rounded-full flex items-center justify-center ${on ? sidebarTheme.badgeActive : sidebarTheme.badgeInactive}`}>{count}</span>
               )}
             </button>

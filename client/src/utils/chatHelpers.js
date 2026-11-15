@@ -18,9 +18,10 @@ export const isMine = (message, me) => sameId(message.senderId, me)
 export const isReadByOthers = (message) => (message.readBy?.length ?? 0) > 0
 
 // Server has no unread counter; with only lastMessage populated we can tell "unread or not".
-export const hasUnreadLast = (conv, me) => {
-  const m = conv.lastMessage
-  return !!m && !sameId(m.senderId, me) && !m.readBy?.some((r) => sameId(r.userId, me))
+export const hasUnreadLast = (conv, currentUser) => {
+  const unreadCount = conv.unreadCounts
+  const findUser = conv.participants.filter((eachParticipant) => eachParticipant._id.toString() !== currentUser._id.toString())
+  return unreadCount[findUser[0]._id]
 }
 
 export const lastMessagePreview = (conv, me) => {

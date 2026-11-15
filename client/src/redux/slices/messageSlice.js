@@ -54,24 +54,18 @@ const messageSlice = createSlice({
                 state.messages.push(action.payload)
             }
         },
-        clearMessages: () => initialState,
-        handleReadStatus: (state, action) => {
-            const {conversationId, readBy, readAt} = action;
-            state.messages = state.messages.map((message) => {
-                const alreadyRead = message.readBy.some(
-                    (item) => item.userId === readBy
-                );
-                console.log("🚀 ~ alreadyRead:", alreadyRead)
+        // clearMessages: () => initialState,
+        // someone (readBy) opened the conversation: mark the messages they received as read by them
+        handleReadStatus: (state, { payload }) => {
+            const { conversationId, readBy, readAt } = payload
+            state.messages.forEach((message) => {
+                const senderId = message.senderId?._id ?? message.senderId
+                const isTheirOwnMessage = senderId === readBy
+                const alreadyRead = message.readBy?.some((item) => item.userId === readBy)
 
-                if (!alreadyRead) {
-                    message.readBy.push({
-                        userId: readBy,
-                        readAt
-                    });
-                }
-
-                return message;
-            });
+                if (message.conversationId !== conversationId || isTheirOwnMessage || alreadyRead) return
+                message.readBy = [...(message.readBy ?? []), { userId: readBy, readAt }]
+            })
         }
     },
     extraReducers: (builder) => {

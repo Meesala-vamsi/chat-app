@@ -27,7 +27,6 @@ userSchema.pre("save", async function(){
     if(!this.isModified("password")) return 
 
     try{
-        console.log("🚀 ~ this.password:", this.password)
         const encryptPassword = await bcrypt.hash(this.password, 10);
         this.password = encryptPassword
         // next();
@@ -39,7 +38,6 @@ userSchema.pre("save", async function(){
 userSchema.methods.comparePasswords = async function(userPassword, hashPassword){
     try{
         const checkPassword = await bcrypt.compare(userPassword, hashPassword);
-        console.log("🚀 ~ checkPassword:", checkPassword)
         return checkPassword;
     }catch(error){
         return false

@@ -6,7 +6,8 @@ import axios from "axios"
 const initialState = {
     conversations: [],
     isLoading: false,
-    error: null
+    error: null,
+    unreadCounts: {}
 }
 
 
@@ -48,7 +49,25 @@ export const createConversation = createAsyncThunk("chat/createConversations", a
 const conversation = createSlice({
     name: "conversation",
     initialState,
-    reducers: {},
+    reducers: {
+        incrementUnread: (state, { payload }) => {
+            const {conversationId, unreadCount} = payload
+            state.conversations = state.conversations.map((eachConversation) => {
+                if(eachConversation._id === conversationId){
+                    return {...eachConversation, "unreadCounts" : unreadCount}
+                }
+                return eachConversation
+            })
+        },
+        clearUnread: (state, { payload }) => {
+            state.conversations = state.conversations.map((eachConversation) => {
+                if(eachConversation._id === payload){
+                    return {...eachConversation, "unreadCounts" : 0}
+                }
+                return eachConversation
+            })
+        }
+    },
     extraReducers: (builder) => {
         builder
             .addCase(fetchConversations.pending, (state) => {
@@ -80,5 +99,5 @@ const conversation = createSlice({
             })
     }
 })
-
+export const { incrementUnread, clearUnread } = conversation.actions;
 export default conversation.reducer;

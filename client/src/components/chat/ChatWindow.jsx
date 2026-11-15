@@ -20,7 +20,7 @@ import TypingIndicator from './TypingIndicator'
 import { socket } from '../../utils/socket'
 import { addMessage, handleReadStatus, sendMessage } from '../../redux/slices/messageSlice'
 import { toast } from 'react-toastify'
-import { fetchConversations } from '../../redux/slices/conversationSlice'
+import { clearUnread, fetchConversations } from '../../redux/slices/conversationSlice'
 import { getOnlineUsers } from '../../redux/selectors/user.selector'
 const headerBtn = { color: '#64748b', width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 } }
 
@@ -87,7 +87,6 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
     socket.emit("onStopTyping", { conversationId })
   }
 
-  // stop typing when switching conversation or leaving the page
   useEffect(() => {
     return () => {
       clearTimeout(stopTypingTimerRef.current)
@@ -95,7 +94,6 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
     }
   }, [activeId])
 
-  // scroll only the message list (not the whole page) down to the newest message
   const messagesContainerRef = useRef(null)
 
   useEffect(() => {
@@ -105,35 +103,46 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
     }
 
     scrollToBottom()
-    // the typing block grows over 300ms, so scroll once more when it has finished opening
     const timer = setTimeout(scrollToBottom, 320)
     return () => clearTimeout(timer)
   }, [messages.length, activeId, typingUser])
 
-  console.log("🚀 ~ ChatWindow ~ onlineUserIds:", onlineUserIds)
   useEffect(() => {
     // 1. Define the named handler function
     const handleNewMessage = (response) => {
       dispatch(addMessage(response));
-      dispatch(fetchConversations())
+
+      const senderId = response.senderId?._id || response.senderId
+      const isIncomingInOpenChat = activeId && response.conversationId === activeId && senderId !== currentUser?._id
+      if (isIncomingInOpenChat) {
+        socket.emit("markMessagesAsRead", activeId, (response) => {
+          // the server answers { status: false } when it could not mark them, and then sends no "readMessages" event
+          if (!response?.status) console.warn("markMessagesAsRead failed:", response?.message)
+          dispatch(fetchConversations())
+        })
+      } else {
+        dispatch(fetchConversations())
+      }
     };
 
     const handleReadMessage = (response) => {
       dispatch(handleReadStatus(response))
     }
 
-    // 2. Turn the listener ON
-    socket.on("newMessage", handleNewMessage);
-    socket.emit("markMessagesAsRead",activeId)
+    socket.on("newMessage", handleNewMessage)
     socket.on("readMessages", handleReadMessage)
 
-    // 3. Turn the listener OFF when the component unmounts
+    // mark what is already unread when this conversation is opened
+    if (activeId) {
+      socket.emit("markMessagesAsRead", activeId)
+      dispatch(clearUnread(activeId))
+    }
+
     return () => {
-      socket.off("newMessage", handleNewMessage);
-      socket.off("markMessagesAsRead", activeId)
+      socket.off("newMessage", handleNewMessage)
       socket.off("readMessages", handleReadMessage)
     };
-  }, [dispatch, activeId])
+  }, [dispatch, activeId, currentUser?._id])
 
   // nothing selected yet
   if (!conv) {
@@ -149,7 +158,6 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
   const title = conversationTitle(conv, currentUser)
   const online = !isGroup && onlineUserIds.includes(other?._id)
 
-  // group the messages by day: [{ dayLabel: "Today", messages: [...] }, ...]
   const messagesByDay = messages.reduce((days, message) => {
     const dayLabel = formatDayLabel(message.createdAt)
     const lastDay = days[days.length - 1]

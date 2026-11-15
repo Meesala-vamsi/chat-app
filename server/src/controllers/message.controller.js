@@ -4,7 +4,7 @@ const { asyncHandler } = require("../utils/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const Message = require("../models/message.model");
 const { validateId } = require("../utils/validations");
-const { getIo } = require("../utils/socket");
+const { getIo, socketIo } = require("../utils/socket");
 
 exports.fetchMessages = asyncHandler(async (req, res, next) => {
     const { conversationId } = req.params;
@@ -34,6 +34,11 @@ exports.fetchMessages = asyncHandler(async (req, res, next) => {
     if (before) {
         filterQuery["_id"] = { "$lt": before }
     }
+    // const io = getIo()
+    // const socket = socketIo()
+    // socket.on("markMessagesAsRead", async (conversationId, callback) => {
+    //         return markMessagesAsRead(conversationId, callback, io)
+    //     });
 
     await Message.updateMany(
         {
@@ -50,6 +55,19 @@ exports.fetchMessages = asyncHandler(async (req, res, next) => {
             }
         }
     );
+
+    const currentReadUser = conversation.participants.filter((eachParticipant) => eachParticipant.toString() === currentUserId)
+
+    await Conversation.findByIdAndUpdate(
+        conversationId,
+        {
+            $set: {
+                [`unreadCounts.${currentReadUser[0]}`]: 0
+            }
+        }
+    );
+
+    // io.to(`conversation:${conversationId}`).emit("")
 
     const messages = await Message.find(filterQuery).populate("senderId", "-password").limit(limit + 1).sort({ _id: -1 })
     const hasMore = messages.length > limit;
@@ -77,6 +95,7 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
     const { content, conversationId, messageType } = req.body
     const senderId = req.user._id.toString();
     const allowedTypes = ["text", "image", "video", "audio", "file"];
+    const io = getIo()
 
     if (!validateId(conversationId)) {
         return next(new ErrorResponse("Invalid conversation.", 400))
@@ -86,7 +105,6 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
         _id: conversationId,
         participants: senderId
     })
-    console.log("🚀 ~ conversation:", conversation)
 
     if (!conversation) {
         return next(new ErrorResponse("Conversation not found.", 404));
@@ -106,7 +124,7 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
     }
 
     const trimmedContent = messageType === "text" ? content.trim() : content
-
+    
     const message = await Message.create({
         content: trimmedContent,
         messageType,
@@ -114,17 +132,28 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
         conversationId
     })
 
+    // const unReadUser = conversation.participants?.filter((eachParticipant) => eachParticipant.toString() === senderId)
+    const receiverId = conversation.participants.filter((eachParticipant) => eachParticipant.toString() !== senderId)
+    const updatedData = await Conversation.findByIdAndUpdate(conversationId, {
+        $inc: {
+            [`unreadCounts.${receiverId[0]}`]: 1
+        }
+    }, {new: true})
+    console.log("🚀 ~ updatedData:", updatedData)
+
+    io.to(`user:${receiverId[0]}`).emit("unreadCount", {
+        conversationId,
+        updatedCount: updatedData.unreadCounts.get(receiverId[0])
+    })
     const populateMessage = await message.populate("senderId", "-password")
-
-    const io = getIo()
-
-
+    
     await Conversation.findByIdAndUpdate(conversationId, {
         lastMessage: message._id,
         lastMessageAt: message.createdAt
     }, { new: true })
-
+    
     io.to(`conversation:${conversationId}`).emit("newMessage", populateMessage)
+    io.to(`user:${receiverId[0]}`).emit("notifyMessage", { user: req.user })
 
     return res.status(201).json({
         status: true,

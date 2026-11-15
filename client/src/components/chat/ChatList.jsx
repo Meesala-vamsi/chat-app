@@ -12,7 +12,7 @@ import { colorFor, conversationTitle, formatListTime, hasUnreadLast, initialsOf,
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchConversations } from '../../redux/slices/conversationSlice'
 import { getUserDetails } from '../../redux/selectors/auth.selector'
-import { getConversations } from '../../redux/selectors/conversation.selector'
+import { getConversations, getUnreadCounts } from '../../redux/selectors/conversation.selector'
 import { getOnlineUsers } from '../../redux/selectors/user.selector'
 
 
@@ -27,25 +27,28 @@ const Unread = ({ n }) => n > 0 && (
   <span className="min-w-6 h-6 px-1.5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">{n}</span>
 )
 
-const Row = ({ selected, onClick, avatar, name, last, time, unread }) => (
-  <button onClick={onClick}
-    className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition ${selected ? 'bg-indigo-100' : 'hover:bg-slate-50'}`}>
-    {avatar}
-    <div className="flex-1 min-w-0">
-      <div className="flex justify-between gap-2">
-        <span className="font-semibold text-slate-900 truncate">{name}</span>
-        <span className="text-xs text-slate-500 shrink-0">{time}</span>
+const Row = ({ selected, onClick, avatar, name, last, time, unread }) => {
+  return (
+    <button onClick={onClick}
+      className={`w-full cursor-pointer flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition ${selected ? 'bg-indigo-100' : 'hover:bg-slate-50'}`}>
+      {avatar}
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between gap-2">
+          <span className="font-semibold text-slate-900 truncate">{name}</span>
+          <span className="text-xs text-slate-500 shrink-0">{time}</span>
+        </div>
+        <div className="flex justify-between gap-2 items-center">
+          <span className="text-sm text-slate-500 truncate">{last}</span>
+          <Unread n={unread} />
+        </div>
       </div>
-      <div className="flex justify-between gap-2 items-center">
-        <span className="text-sm text-slate-500 truncate">{last}</span>
-        <Unread n={unread} />
-      </div>
-    </div>
-  </button>
-)
+    </button>
+  );
+}
 
 const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
   const conversations = useSelector(getConversations);
+  const unreadCounts = useSelector(getUnreadCounts);
   const dispatch = useDispatch();
   const [search, setSearch] = useState('')
   const searchTerm = search.trim()
@@ -53,10 +56,7 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
   const groupConversations = conversations.filter((conversation) => conversation.type === 'group')
   const currentUser = useSelector(getUserDetails);
   const onlineUserIds = useSelector(getOnlineUsers)
-  console.log("🚀 ~ ChatList ~ onlineUserIds:", onlineUserIds)
-  console.log("🚀 ~ ChatList ~ currentUser:", currentUser)
 
-  // lodash debounce: the API is called 400ms after the user stops typing
   const searchUsersDebounced = useMemo(
     () => debounce((term) => dispatch(searchUsers({ search: term, page: 1 })), 400),
     [dispatch]
@@ -72,19 +72,15 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
     return () => searchUsersDebounced.cancel()
   }, [searchTerm, searchUsersDebounced, dispatch])
 
-  // after picking a searched user: tell the parent, clear the search box and show all conversations again
   const handleSelectUser = (user) => {
     onSelectUser?.(user)
     setSearch('')
   }
 
-  useEffect(() =>{
+  useEffect(() => {
     dispatch(fetchConversations())
-    .then((response) => {
-      console.log("🚀 ~ ChatList ~ response:", response)
-      
-    })
-  }, [])
+  }, [dispatch])
+
 
   return (
     <section className={`w-full flex-1 md:flex-none md:w-80 lg:w-96 shrink-0 min-h-0 flex-col bg-white border-r border-slate-100 ${className}`}>
@@ -98,32 +94,32 @@ const ChatList = ({ activeId, onSelect, onSelectUser, className = '' }) => {
 
       <div className="flex-1 overflow-y-auto pb-4">
         {searchTerm ? <UserSearchResults search={searchTerm} onSelectUser={handleSelectUser} /> : (<>
-      <Section title="Chats" />
-        <div className="px-2">
-          {directConversations.map((c) => {
-            const other = otherUser(c, currentUser)
-            const name = conversationTitle(c, currentUser)
-            return (
-              <Row key={c._id} selected={activeId === c._id} onClick={() => onSelect(c._id)} name={name}
-                last={lastMessagePreview(c, currentUser)} time={formatListTime(c.lastMessageAt)}
-                unread={hasUnreadLast(c, currentUser) ? 1 : 0}
-                avatar={
-                  <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} variant="dot" invisible={!onlineUserIds.includes(other?._id)}
-                    sx={{ '& .MuiBadge-badge': { backgroundColor: '#22c55e', color: '#22c55e', border: '2px solid #fff' } }}>
-                    <Avatar sx={{ bgcolor: colorFor(other?._id), width: 52, height: 52 }}>{initialsOf(name)}</Avatar>
-                  </Badge>} />
-            )
-          })}
-        </div>
+          <Section title="Chats" />
+          <div className="px-2">
+            {directConversations.map((conversation) => {
+              const other = otherUser(conversation, currentUser)
+              const name = conversationTitle(conversation, currentUser)
+              return (
+                <Row key={conversation._id} selected={activeId === conversation._id} onClick={() => onSelect(conversation._id)} name={name}
+                  last={lastMessagePreview(conversation, currentUser)} time={formatListTime(conversation.lastMessageAt)}
+                  unread={activeId === conversation._id ? 0 : conversation.unreadCounts ?? 0}
+                  avatar={
+                    <Badge overlap="circular" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} variant="dot" invisible={!onlineUserIds.includes(other?._id)}
+                      sx={{ '& .MuiBadge-badge': { backgroundColor: '#22c55e', color: '#22c55e', border: '2px solid #fff' } }}>
+                      <Avatar sx={{ bgcolor: colorFor(other?._id), width: 52, height: 52 }}>{initialsOf(name)}</Avatar>
+                    </Badge>} />
+              )
+            })}
+          </div>
 
-        <Section title="Groups" />
-        <div className="px-2">
-          {groupConversations.map((g) => (
-            <Row key={g._id} selected={activeId === g._id} onClick={() => onSelect(g._id)} name={conversationTitle(g, currentUser)}
-              last={lastMessagePreview(g, currentUser)} time={formatListTime(g.lastMessageAt)} unread={hasUnreadLast(g, currentUser) ? 1 : 0}
-              avatar={<Avatar src={g.groupImage || undefined} sx={{ bgcolor: '#e0e7ff', color: '#4f46e5', width: 52, height: 52 }}><GroupsRoundedIcon /></Avatar>} />
-          ))}
-        </div>
+          <Section title="Groups" />
+          <div className="px-2">
+            {groupConversations.map((g) => (
+              <Row key={g._id} selected={activeId === g._id} onClick={() => onSelect(g._id)} name={conversationTitle(g, currentUser)}
+                last={lastMessagePreview(g, currentUser)} time={formatListTime(g.lastMessageAt)} unread={unreadCounts[g._id] ?? 0}
+                avatar={<Avatar src={g.groupImage || undefined} sx={{ bgcolor: '#e0e7ff', color: '#4f46e5', width: 52, height: 52 }}><GroupsRoundedIcon /></Avatar>} />
+            ))}
+          </div>
         </>)}
       </div>
     </section>

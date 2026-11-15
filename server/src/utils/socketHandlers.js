@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Conversation = require("../models/conversation.model");
 const Message = require("../models/message.model");
 const User = require("../models/user.model");
+const { getIo } = require("./socket");
 
 exports.joinConversation = async (conversationId, callback, socket) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
@@ -31,10 +32,12 @@ exports.joinConversation = async (conversationId, callback, socket) => {
     })
 }
 
-exports.markMessagesAsRead = async (conversationId, callback, io) => {
+exports.markMessagesAsRead = async (conversationId, callback, socket) => {
 
     try {
         console.log("Messages read")
+        const io = getIo();
+        const userId = socket.userId
         if (!mongoose.Types.ObjectId.isValid(conversationId)) {
             return callback?.({
                 status: false,
@@ -67,6 +70,16 @@ exports.markMessagesAsRead = async (conversationId, callback, io) => {
                         readAt: new Date()
                     }
                 }
+            }
+        );
+
+        await Conversation.updateOne(
+            {
+                _id: conversationId,
+                [`unreadCounts.${userId}`]: { $exists: true }
+            },
+            {
+                $set: { [`unreadCounts.${userId}`]: 0 }
             }
         );
 

@@ -45,20 +45,20 @@ const readBy = (u, at) => [{ userId: u._id, readAt: at }]
 
 const C = (n) => `66a0000000000000000000${String(n).padStart(2, "0")}`
 
-export const messagesByConversation = {
-  [C(1)]: [
-    msg("67b000000000000000000001", C(1), rahul, "Hey! How are you?", "2026-11-07T10:45:00.000Z", { readBy: readBy(currentUser, "2026-11-07T10:46:00.000Z") }),
-    msg("67b000000000000000000002", C(1), currentUser, "I'm good! What about you?", "2026-11-07T10:46:00.000Z", { readBy: readBy(rahul, "2026-11-07T10:46:30.000Z") }),
-    msg("67b000000000000000000003", C(1), rahul, "Working on the chat application.", "2026-11-07T10:47:00.000Z", { readBy: readBy(currentUser, "2026-11-07T10:47:10.000Z") }),
-    msg("67b000000000000000000004", C(1), currentUser, "That's awesome 👍", "2026-11-07T10:48:00.000Z", { readBy: readBy(rahul, "2026-11-07T10:48:20.000Z") }),
-    msg("67b000000000000000000005", C(1), rahul, "That's great! Looking forward to seeing it.", "2026-11-07T10:49:00.000Z", { readBy: readBy(currentUser, "2026-11-07T10:49:10.000Z") }),
-    msg("67b000000000000000000006", C(1), currentUser, "", "2026-11-07T10:50:00.000Z", {
-      messageType: "image",
-      attachments: ["https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600"],
-      readBy: readBy(rahul, "2026-11-07T10:50:30.000Z"),
-    }),
-  ],
-}
+// export const messagesByConversation = {
+//   [C(1)]: [
+//     msg("67b000000000000000000001", C(1), rahul, "Hey! How are you?", "2026-11-07T10:45:00.000Z", { readBy: readBy(currentUser, "2026-11-07T10:46:00.000Z") }),
+//     msg("67b000000000000000000002", C(1), currentUser, "I'm good! What about you?", "2026-11-07T10:46:00.000Z", { readBy: readBy(rahul, "2026-11-07T10:46:30.000Z") }),
+//     msg("67b000000000000000000003", C(1), rahul, "Working on the chat application.", "2026-11-07T10:47:00.000Z", { readBy: readBy(currentUser, "2026-11-07T10:47:10.000Z") }),
+//     msg("67b000000000000000000004", C(1), currentUser, "That's awesome 👍", "2026-11-07T10:48:00.000Z", { readBy: readBy(rahul, "2026-11-07T10:48:20.000Z") }),
+//     msg("67b000000000000000000005", C(1), rahul, "That's great! Looking forward to seeing it.", "2026-11-07T10:49:00.000Z", { readBy: readBy(currentUser, "2026-11-07T10:49:10.000Z") }),
+//     msg("67b000000000000000000006", C(1), currentUser, "", "2026-11-07T10:50:00.000Z", {
+//       messageType: "image",
+//       attachments: ["https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600"],
+//       readBy: readBy(rahul, "2026-11-07T10:50:30.000Z"),
+//     }),
+//   ],
+// }
 
 // lastMessage is populated by the server, so it is a full message object (senderId is a plain id here).
 const last = (id, convId, senderId, content, createdAt, read = []) => ({

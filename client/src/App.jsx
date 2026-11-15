@@ -6,16 +6,17 @@ const SignupPage = lazy(() => import("./pages/SignupPage"))
 const HomePage = lazy(() => import("./pages/HomePage"))
 const ProfilePage = lazy(() => import("./pages/ProfilePage"))
 const PublicRoute = lazy(() => import("./components/PublicRoute"))
-import { ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {io} from "socket.io-client"
 import {useDispatch, useSelector} from "react-redux"
-import { loginAccessToken } from './redux/selectors/auth.selector'
+import { getUserDetails, loginAccessToken } from './redux/selectors/auth.selector'
 import { socket } from './utils/socket'
 import { onlineUsers } from './redux/slices/userSlice'
 const App = () => {
   const accessToken = useSelector(loginAccessToken)
   const dispatch = useDispatch()
+  const currentUser = useSelector(getUserDetails);
   
   useEffect(() => {
     const onlineUsersCallback = (response) => {
@@ -26,11 +27,24 @@ const App = () => {
         const {onlineUserIds} = response;
         dispatch(onlineUsers({type:"offline", onlineUsers: Object.keys(onlineUserIds)}))
       }
+
+      const notify = (response) => {
+        const {user} = response
+        console.log("🚀 ~ App ~ currentUser:", currentUser)
+        console.log("🚀 ~ App ~ user:", user)
+        if(user._id.toString() !== currentUser._id.toString()){
+          const {firstName, lastName} = user
+          const username = lastName ? firstName + " " + lastName : firstName;
+
+          toast.success(`Message received from ${username}`)
+        }
+      }
     if(accessToken){
       socket.auth = {token: accessToken};
       socket.connect()
       socket.on("offlineUsers", offlineUsersCallback)
       socket.on("onlineUsers", onlineUsersCallback)
+      socket.on("notifyMessage", notify)
     } else{
       socket.disconnect()
     }
@@ -38,6 +52,7 @@ const App = () => {
     return () => {
       socket.off("onlineUsers", onlineUsersCallback)
       socket.off("offlineUsers", offlineUsersCallback)
+      socket.off("notifyMessage", notify)
       socket.disconnect()
     }
   }, [accessToken])

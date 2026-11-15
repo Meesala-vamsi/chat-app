@@ -60,27 +60,21 @@ const onlineUserIds = new Map()
 
 io.on("connection", (socket) => {
     const userId = socket.userId
-    console.log("🚀 ~ userId:", userId)
     socket.join(`user:${userId}`)
     console.log("Socket connected")
     let sockets = new Set();
-    console.log("🚀 ~ onlineUserIds.get(userId):", onlineUserIds.get(userId))
     if(onlineUserIds.get(userId)){
         sockets.add(onlineUserIds.get(userId))
     }
 
-    console.log("🚀 ~ sockets:", Boolean(sockets))
     if(sockets.size<=0){
         sockets = new Set();
         onlineUserIds.set(userId, socket.id)
     }
 
     const usersObj = Object.fromEntries(onlineUserIds)
-    console.log("🚀 ~ usersObj:", usersObj)
     io.emit("onlineUsers", {onlineUserIds: usersObj})
-    // socket.broadcast.emit("onlineUsers", {onlineUserIds: usersObj})
     sockets.add(socket.id)
-    // console.log([...socket.rooms], "hello sockets")
     socket.on("joinConversation", async (conversationId, callback) => {
         return joinConversation(conversationId, callback, socket)
     });
@@ -90,7 +84,8 @@ io.on("connection", (socket) => {
     })
 
     socket.on("markMessagesAsRead", async (conversationId, callback) => {
-        return markMessagesAsRead(conversationId, callback, io)
+        console.log("emitting the event")
+        return markMessagesAsRead(conversationId, callback, socket)
     });
 
     // Tell the other people in the conversation that this user is typing.
@@ -99,7 +94,6 @@ io.on("connection", (socket) => {
         return onTyping(data, callback, socket);
     })
 
-    console.log("🚀 ~ onlineUserIds:", onlineUserIds)
 
     socket.on("onStopTyping", (data) => {
         const conversationId = data?.conversationId
