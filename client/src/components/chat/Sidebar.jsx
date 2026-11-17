@@ -3,7 +3,7 @@ import { Avatar, Badge } from '@mui/material'
 import ChatBubbleRoundedIcon from '@mui/icons-material/ChatBubbleRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
+// import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import logo from '../../assets/logo.svg'
 import { fullName, initialsOf } from '../../utils/chatHelpers'
@@ -34,7 +34,7 @@ const Sidebar = ({ active = 'Chats', onSelect, onLogout, className = '' }) => {
     { label: 'Chats', icon: ChatBubbleRoundedIcon, count: (conversations && conversations.length > 0) ? conversations.length : 0 },
     { label: 'Groups', icon: GroupsRoundedIcon, count: (conversations || []).filter((c) => c.type === 'group').length },
     { label: 'Contacts', icon: PersonRoundedIcon },
-    { label: 'Settings', icon: SettingsRoundedIcon },
+    // { label: 'Settings', icon: SettingsRoundedIcon },
   ]
   const currentUser = useSelector(getUserDetails)
   return (

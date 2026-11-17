@@ -108,6 +108,7 @@ io.on("connection", (socket) => {
     })
 
     socket.on("disconnect", () => {
+        User.findByIdAndUpdate(userId, { lastSeen: new Date() }).catch(() => {})
         const sockets = new Set();
         sockets.add(onlineUserIds.get(userId))
         if(!sockets){

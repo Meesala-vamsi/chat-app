@@ -55,3 +55,15 @@ export const formatDayLabel = (iso) => {
   if (daysAgo < 7) return messageDate.toLocaleDateString([], { weekday: "long" })
   return messageDate.toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" })
 }
+
+export const formatLastSeen = (iso) => {
+  if (!iso) return "Offline"
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (minutes < 1) return "Offline • Last seen just now"
+  if (minutes < 60) return `Offline • Last seen ${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `Offline • Last seen ${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return "Offline • Last seen yesterday"
+  return `Offline • Last seen ${new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" })}`
+}

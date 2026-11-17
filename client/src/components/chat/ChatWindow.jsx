@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar, Badge, CircularProgress, IconButton } from '@mui/material'
-import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined'
-import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import SentimentSatisfiedAltOutlinedIcon from '@mui/icons-material/SentimentSatisfiedAltOutlined'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
@@ -14,6 +11,7 @@ import { MAX_FILE_SIZE_MB, MAX_FILES } from '../../utils/mediaHelpers'
 import MessageTime from './MessageTime'
 import MessageMedia from './MessageMedia'
 import FilePickerButton from '../media/FilePickerButton'
+import EmojiPickerButton from '../common/EmojiPickerButton'
 import FilePreviewTray from '../media/FilePreviewTray'
 import { useDispatch, useSelector } from 'react-redux'
 import { getConversations } from '../../redux/selectors/conversation.selector'
@@ -88,6 +86,7 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
   // Typing events: send "typing" at most once every 1.5s while the user types,
   // and "stop typing" once they pause for 2s, clear the box or send the message.
   const stopTypingTimerRef = useRef(null)
+  const messageInputRef = useRef(null)
 
   const emitTyping = useMemo(
     () => throttle((conversationId) => socket.emit("onTyping", { conversationId }), 1500, { trailing: false }),
@@ -235,15 +234,26 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
     }
   }
 
-  const onEnterMessage = (event) => {
+  const onEnterMessage = (event) => updateMessageText(event.target.value)
+
+  const onPickEmoji = (emoji) => {
+    const input = messageInputRef.current
+    const start = input.selectionStart ?? message.content.length
+    const end = input.selectionEnd ?? start
+    updateMessageText(message.content.slice(0, start) + emoji + message.content.slice(end))
+    const caret = start + emoji.length
+    requestAnimationFrame(() => input.setSelectionRange(caret, caret))
+  }
+
+  const updateMessageText = (text) => {
     setMessage((message) => ({
       ...message,
-      "content": event.target.value,
+      "content": text,
       messageType: "text"
     }))
 
     // empty box means the user stopped typing
-    if (!event.target.value) {
+    if (!text) {
       emitStopTyping(activeId)
       return
     }
@@ -267,8 +277,6 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
             {typingUser ? <span className="text-indigo-600 font-medium">typing...</span> : isGroup ? `${conv.participants.length} members` : <><span className={`w-2 h-2 rounded-full ${online ? 'bg-green-500' : 'bg-slate-300'}`} />{online ? 'Online' : 'Offline'}</>}
           </p>
         </div>
-        <IconButton sx={headerBtn}><PhoneOutlinedIcon /></IconButton>
-        <IconButton sx={headerBtn}><VideocamOutlinedIcon /></IconButton>
         <IconButton sx={headerBtn}><MoreHorizIcon /></IconButton>
       </header>
 
@@ -286,9 +294,9 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
       <footer className="p-3 sm:p-4 bg-white border-t border-slate-100">
         <FilePreviewTray files={selectedFiles} onRemove={onRemoveFile} disabled={isUploading} />
         <form className="flex items-center gap-2 sm:gap-3" onSubmit={onSubmitMessage}>
-          <IconButton aria-label="emojmessagei"><SentimentSatisfiedAltOutlinedIcon /></IconButton>
+          <EmojiPickerButton onSelect={onPickEmoji} onClose={() => messageInputRef.current?.focus()} disabled={isUploading} />
           <div className="flex-1 min-w-0 flex items-center gap-1 bg-slate-100 rounded-full pl-4 sm:pl-5 pr-1 sm:pr-2 py-1 border border-transparent focus-within:border-violet-300 focus-within:bg-white transition-colors">
-            <input placeholder={selectedFiles.length > 0 ? "Add a caption" : "Type a message"} className="flex-1 min-w-0 bg-transparent outline-none py-2 text-sm" value={message.content} onChange={(event) => onEnterMessage(event)} />
+            <input ref={messageInputRef} placeholder={selectedFiles.length > 0 ? "Add a caption" : "Type a message"} className="flex-1 min-w-0 bg-transparent outline-none py-2 text-sm" value={message.content} onChange={(event) => onEnterMessage(event)} />
             <FilePickerButton label="attach file" onPick={onPickFiles} disabled={isUploading}
               accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt">
               <AttachFileIcon className="text-slate-500" />

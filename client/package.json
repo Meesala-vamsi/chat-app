@@ -17,6 +17,7 @@
     "@reduxjs/toolkit": "^2.14.0",
     "@tailwindcss/vite": "^4.3.4",
     "axios": "^1.21.0",
+    "emoji-picker-react": "^5.1.4",
     "lodash.debounce": "^4.0.8",
     "lodash.throttle": "^4.1.1",
     "react": "^19.3.1",

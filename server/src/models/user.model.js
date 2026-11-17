@@ -20,6 +20,24 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, "Email is required"],
         unique: true
+    },
+    avatar: {
+        type: String,
+        default: ""
+    },
+    about: {
+        type: String,
+        default: "",
+        maxlength: [200, "About can have up to 200 characters."]
+    },
+    designation: {
+        type: String,
+        default: "",
+        maxlength: [80, "Designation can have up to 80 characters."]
+    },
+    lastSeen: {
+        type: Date,
+        default: null
     }
 },{timestamps: true})
 

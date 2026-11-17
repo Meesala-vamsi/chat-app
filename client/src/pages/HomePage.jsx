@@ -3,6 +3,7 @@ import Sidebar from '../components/chat/Sidebar'
 import ChatList from '../components/chat/ChatList'
 import ChatWindow from '../components/chat/ChatWindow'
 import GroupsPanel from '../components/chat/GroupsPanel'
+import ContactsPanel from '../components/chat/ContactsPanel'
 import CreateGroupDialog from '../components/chat/CreateGroupDialog'
 import { useDispatch, useSelector } from "react-redux"
 import { getUserDetails } from '../redux/selectors/auth.selector'
@@ -74,11 +75,16 @@ const HomePage = () => {
 
   const onSelectUser = async (user) => {
     try {
-      const response = await dispatch(createConversation({ selectedUserId: user._id, type: "direct" })).unwrap()
+      const response = await dispatch(createConversation({ selectedUserId: [user._id], type: "direct" })).unwrap()
       await onClickConversation(response.data.conversation._id)
     } catch (error) {
       toast.error(error?.message || "Failed to open conversation")
     }
+  }
+
+  const onChatWithContact = async (user) => {
+    setActiveTab('Chats')
+    await onSelectUser(user)
   }
 
   useEffect(() => {
@@ -135,6 +141,8 @@ const HomePage = () => {
         <Sidebar active={activeTab} onSelect={setActiveTab} onLogout={onClickLogout} />
         {activeTab === 'Groups' ? (
           <GroupsPanel className="flex" onOpenGroup={onOpenGroup} onCreateGroup={() => setShowCreateGroup(true)} />
+        ) : activeTab === 'Contacts' ? (
+          <ContactsPanel className="flex" onChat={onChatWithContact} />
         ) : (
           <>
             <ChatList

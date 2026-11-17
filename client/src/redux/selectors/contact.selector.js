@@ -1,0 +1,13 @@
+export const getContacts = (state) => state.contact.contacts
+export const getContactsPage = (state) => state.contact.page
+export const getContactsHasMore = (state) => state.contact.hasMore
+export const getContactsTotal = (state) => state.contact.total
+export const getContactsLoading = (state) => state.contact.isLoading
+export const getContactsError = (state) => state.contact.error
+export const getSelectedContact = (state) => state.contact.selectedContact
+export const getSelectedContactLoading = (state) => state.contact.isContactLoading
+export const getSelectedContactError = (state) => state.contact.contactError
+export const getSharedMedia = (state) => state.contact.media
+export const getSharedMediaCursor = (state) => state.contact.mediaCursor
+export const getSharedMediaHasMore = (state) => state.contact.mediaHasMore
+export const getSharedMediaLoading = (state) => state.contact.isMediaLoading
