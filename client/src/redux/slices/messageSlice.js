@@ -27,11 +27,30 @@ export const fetchMessages = createAsyncThunk("message/fetchMessages", async ({ 
     }
 })
 
-export const sendMessage = createAsyncThunk("message/sendMessage", async ({ conversationId, content, messageType = "text" }, thunkApi) => {
+// Upload files (an array of File objects) and get back [{ url, messageType, name, size }].
+// Send each one afterwards with sendMessage, passing its url in `attachments`.
+export const uploadMedia = createAsyncThunk("message/uploadMedia", async (files, thunkApi) => {
+    try {
+        const token = thunkApi.getState().auth.accessToken
+        const formData = new FormData()
+        files.forEach((file) => formData.append("files", file))
+        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/message/upload`, formData,
+            { headers: { Authorization: `Bearer ${token}` } }
+        )
+        return response.data
+    } catch (error) {
+        return thunkApi.rejectWithValue({
+            status: false,
+            message: error.response?.data?.message || "Failed to upload files"
+        })
+    }
+})
+
+export const sendMessage = createAsyncThunk("message/sendMessage", async ({ conversationId, content, messageType = "text", attachments = [] }, thunkApi) => {
     try {
         const token = thunkApi.getState().auth.accessToken
         const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/message/send`,
-            { conversationId, content, messageType },
+            { conversationId, content, messageType, attachments },
             { headers: { Authorization: `Bearer ${token}` } }
         )
         return response.data

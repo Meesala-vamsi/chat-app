@@ -5,6 +5,40 @@ const ErrorResponse = require("../utils/errorResponse");
 const Message = require("../models/message.model");
 const { validateId } = require("../utils/validations");
 const { getIo, socketIo } = require("../utils/socket");
+const { uploadToCloudinary, isOurCloudinaryUrl } = require("../utils/cloudinary");
+
+const messageTypeOf = (mimeType) => {
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    return "file";
+};
+
+// Step 1 of sending media: upload the files and get their links back.
+// Step 2 is the normal send message request, with these links in `attachments`.
+exports.uploadMedia = asyncHandler(async (req, res, next) => {
+    if (!req.files || req.files.length === 0) {
+        return next(new ErrorResponse("Please choose at least one file.", 400));
+    }
+
+    const uploadedFiles = await Promise.all(
+        req.files.map(async (file) => {
+            const result = await uploadToCloudinary(file.buffer);
+            return {
+                url: result.secure_url,
+                messageType: messageTypeOf(file.mimetype),
+                name: file.originalname,
+                size: file.size
+            };
+        })
+    );
+
+    return res.status(201).json({
+        status: true,
+        message: "Files uploaded successfully.",
+        data: { files: uploadedFiles }
+    });
+});
 
 exports.fetchMessages = asyncHandler(async (req, res, next) => {
     const { conversationId } = req.params;
@@ -92,7 +126,7 @@ exports.fetchMessages = asyncHandler(async (req, res, next) => {
 
 exports.sendMessage = asyncHandler(async (req, res, next) => {
 
-    const { content, conversationId, messageType } = req.body
+    const { content, conversationId, messageType, attachments = [] } = req.body
     const senderId = req.user._id.toString();
     const allowedTypes = ["text", "image", "video", "audio", "file"];
     const io = getIo()
@@ -123,13 +157,24 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
         return next(new ErrorResponse("Invalid message type.", 400));
     }
 
+    // media messages must carry the links returned by the upload request
+    if (messageType !== "text") {
+        const hasValidAttachments = Array.isArray(attachments)
+            && attachments.length > 0
+            && attachments.every(isOurCloudinaryUrl);
+        if (!hasValidAttachments) {
+            return next(new ErrorResponse("Please attach the uploaded files.", 400));
+        }
+    }
+
     const trimmedContent = messageType === "text" ? content.trim() : content
-    
+
     const message = await Message.create({
         content: trimmedContent,
         messageType,
         senderId,
-        conversationId
+        conversationId,
+        attachments: messageType === "text" ? [] : attachments
     })
 
     // const unReadUser = conversation.participants?.filter((eachParticipant) => eachParticipant.toString() === senderId)

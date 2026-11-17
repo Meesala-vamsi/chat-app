@@ -63,6 +63,13 @@ conversationSchema.index(
     }
 );
 
+// The chat list: all conversations of one user, most recent message first.
+// Also used by the "is this user in this conversation" checks (participants + _id).
+conversationSchema.index({
+    participants: 1,
+    lastMessageAt: -1
+});
+
 const Conversation = mongoose.model("Conversation", conversationSchema);
 
 

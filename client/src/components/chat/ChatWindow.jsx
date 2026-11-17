@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Avatar, Badge, IconButton } from '@mui/material'
+import { Avatar, Badge, CircularProgress, IconButton } from '@mui/material'
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
@@ -8,9 +8,13 @@ import SentimentSatisfiedAltOutlinedIcon from '@mui/icons-material/SentimentSati
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
-import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded'
 // import { onlineUserIds } from '../../data/mockChat'
-import { colorFor, conversationTitle, formatDayLabel, formatTime, fullName, initialsOf, isMine, isReadByOthers, otherUser } from '../../utils/chatHelpers'
+import { colorFor, conversationTitle, formatDayLabel, fullName, initialsOf, isMine, otherUser } from '../../utils/chatHelpers'
+import { MAX_FILE_SIZE_MB, MAX_FILES } from '../../utils/mediaHelpers'
+import MessageTime from './MessageTime'
+import MessageMedia from './MessageMedia'
+import FilePickerButton from '../media/FilePickerButton'
+import FilePreviewTray from '../media/FilePreviewTray'
 import { useDispatch, useSelector } from 'react-redux'
 import { getConversations } from '../../redux/selectors/conversation.selector'
 import { getMessages } from '../../redux/selectors/message.selector'
@@ -18,17 +22,11 @@ import { getUserDetails } from '../../redux/selectors/auth.selector'
 import throttle from 'lodash.throttle'
 import TypingIndicator from './TypingIndicator'
 import { socket } from '../../utils/socket'
-import { addMessage, handleReadStatus, sendMessage } from '../../redux/slices/messageSlice'
+import { addMessage, handleReadStatus, sendMessage, uploadMedia } from '../../redux/slices/messageSlice'
 import { toast } from 'react-toastify'
 import { clearUnread, fetchConversations } from '../../redux/slices/conversationSlice'
 import { getOnlineUsers } from '../../redux/selectors/user.selector'
 const headerBtn = { color: '#64748b', width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 } }
-
-const Time = ({ m, mine }) => (
-  <span className="text-[10px] text-slate-500 flex items-center gap-0.5 self-end whitespace-nowrap">
-    {formatTime(m.createdAt)}{mine && isReadByOthers(m) && <DoneAllRoundedIcon sx={{ fontSize: 13 }} className="text-indigo-600" />}
-  </span>
-)
 
 const Bubble = ({ m }) => {
   const currentUser = useSelector(getUserDetails)
@@ -41,16 +39,13 @@ const Bubble = ({ m }) => {
       <div className={`flex flex-col max-w-[75%] sm:max-w-sm ${mine ? 'items-end' : 'items-start'}`}>
         {/* who sent it: "You" for the current user, first name for everyone else */}
         <span className="text-[11px] font-medium text-slate-400 mb-0.5 px-2">{mine ? 'You' : sender.firstName}</span>
-        {m.messageType === 'image' ? (
-          <div className={`relative rounded-2xl overflow-hidden shadow-sm ${mine ? 'rounded-br-sm' : 'rounded-bl-sm'}`}>
-            <img src={m.attachments[0]} alt="" className="w-full h-auto object-cover" />
-            <span className="absolute bottom-2 right-2 text-[11px] text-white bg-black/40 rounded-full px-2 py-0.5">{formatTime(m.createdAt)}</span>
-          </div>
-        ) : (
+        {m.messageType === 'text' ? (
           <div className={`flex gap-2 px-3.5 py-1.5 rounded-2xl shadow-sm ${mine ? 'bg-indigo-100 rounded-br-sm' : 'bg-white rounded-bl-sm'} text-slate-900`}>
             <span className="break-words text-[13px] leading-snug">{m.content}</span>
-            <Time m={m} mine={mine} />
+            <MessageTime m={m} mine={mine} />
           </div>
+        ) : (
+          <MessageMedia m={m} mine={mine} />
         )}
       </div>
       {mine && <Avatar sx={{ bgcolor: '#6366f1', width: 30, height: 30, fontSize: 12 }}>{initialsOf(fullName(currentUser))}</Avatar>}
@@ -71,6 +66,24 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
     content: "",
     messageType: ""
   })
+
+  // files picked with the attach / image buttons, waiting to be sent
+  // The files remember which conversation they were picked in, so they are
+  // not shown (or sent) in another conversation after switching.
+  const [pickedFiles, setPickedFiles] = useState({ conversationId: null, files: [] })
+  const selectedFiles = pickedFiles.conversationId === activeId ? pickedFiles.files : []
+  const [isUploading, setIsUploading] = useState(false)
+
+  const onPickFiles = (newFiles) => {
+    const tooBig = newFiles.find((file) => file.size > MAX_FILE_SIZE_MB * 1024 * 1024)
+    if (tooBig) return toast.error(`${tooBig.name} is bigger than ${MAX_FILE_SIZE_MB} MB.`)
+    if (selectedFiles.length + newFiles.length > MAX_FILES) return toast.error(`You can send up to ${MAX_FILES} files at once.`)
+    setPickedFiles({ conversationId: activeId, files: [...selectedFiles, ...newFiles] })
+  }
+
+  const onRemoveFile = (index) => {
+    setPickedFiles({ conversationId: activeId, files: selectedFiles.filter((_, fileIndex) => fileIndex !== index) })
+  }
 
   // Typing events: send "typing" at most once every 1.5s while the user types,
   // and "stop typing" once they pause for 2s, clear the box or send the message.
@@ -169,10 +182,40 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
     return days
   }, [])
 
+  // upload the picked files, then send one message per file; the text in the box becomes the caption of the first one
+  const sendSelectedFiles = async () => {
+    setIsUploading(true)
+    try {
+      const { data } = await dispatch(uploadMedia(selectedFiles)).unwrap()
+      const caption = message.content.trim()
+
+      for (const [index, file] of data.files.entries()) {
+        await dispatch(sendMessage({
+          conversationId: activeId,
+          messageType: file.messageType,
+          attachments: [file.url],
+          content: index === 0 ? caption : "",
+        })).unwrap()
+      }
+
+      setPickedFiles({ conversationId: null, files: [] })
+      setMessage({ content: "", messageType: "" })
+      await dispatch(fetchConversations()).unwrap()
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const onSubmitMessage = async (event) => {
     try {
       event.preventDefault()
       emitStopTyping(activeId)
+
+      if (selectedFiles.length > 0) {
+        return sendSelectedFiles()
+      }
 
       const messageSend = await dispatch(sendMessage({
         ...message,
@@ -241,15 +284,21 @@ const ChatWindow = ({ activeId, onBack, typingUser = null, className = '' }) => 
       </div>
 
       <footer className="p-3 sm:p-4 bg-white border-t border-slate-100">
+        <FilePreviewTray files={selectedFiles} onRemove={onRemoveFile} disabled={isUploading} />
         <form className="flex items-center gap-2 sm:gap-3" onSubmit={onSubmitMessage}>
           <IconButton aria-label="emojmessagei"><SentimentSatisfiedAltOutlinedIcon /></IconButton>
           <div className="flex-1 min-w-0 flex items-center gap-1 bg-slate-100 rounded-full pl-4 sm:pl-5 pr-1 sm:pr-2 py-1 border border-transparent focus-within:border-violet-300 focus-within:bg-white transition-colors">
-            <input placeholder="Type a message" className="flex-1 min-w-0 bg-transparent outline-none py-2 text-sm" value={message.content} onChange={(event) => onEnterMessage(event)} />
-            <IconButton size="small"><AttachFileIcon className="text-slate-500" /></IconButton>
-            <IconButton size="small"><ImageOutlinedIcon className="text-slate-500" /></IconButton>
+            <input placeholder={selectedFiles.length > 0 ? "Add a caption" : "Type a message"} className="flex-1 min-w-0 bg-transparent outline-none py-2 text-sm" value={message.content} onChange={(event) => onEnterMessage(event)} />
+            <FilePickerButton label="attach file" onPick={onPickFiles} disabled={isUploading}
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt">
+              <AttachFileIcon className="text-slate-500" />
+            </FilePickerButton>
+            <FilePickerButton label="attach photo or video" onPick={onPickFiles} disabled={isUploading} accept="image/*,video/*">
+              <ImageOutlinedIcon className="text-slate-500" />
+            </FilePickerButton>
           </div>
-          <IconButton type="submit" aria-label="send" sx={{ bgcolor: '#7c3aed', color: '#fff', width: 44, height: 44, flexShrink: 0, '&:hover': { bgcolor: '#6d28d9' } }}>
-            <SendRoundedIcon />
+          <IconButton type="submit" aria-label="send" disabled={isUploading} sx={{ bgcolor: '#7c3aed', color: '#fff', width: 44, height: 44, flexShrink: 0, '&:hover': { bgcolor: '#6d28d9' }, '&.Mui-disabled': { bgcolor: '#a78bfa', color: '#fff' } }}>
+            {isUploading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : <SendRoundedIcon />}
           </IconButton>
         </form>
       </footer>

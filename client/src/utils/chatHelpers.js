@@ -27,7 +27,8 @@ export const hasUnreadLast = (conv, currentUser) => {
 export const lastMessagePreview = (conv, me) => {
   const m = conv.lastMessage
   if (!m) return "No messages yet"
-  const text = m.messageType === "text" ? m.content : `📎 ${m.messageType[0].toUpperCase()}${m.messageType.slice(1)}`
+  const mediaLabels = { image: "📷 Photo", video: "🎥 Video", audio: "🎵 Audio", file: "📄 Document" }
+  const text = m.messageType === "text" ? m.content : mediaLabels[m.messageType] ?? "📎 Attachment"
   if (conv.type !== "group") return text
   const sender = conv.participants.find((p) => sameId(p, m.senderId))
   return `${sameId(sender, me) ? "You" : sender?.firstName}: ${text}`

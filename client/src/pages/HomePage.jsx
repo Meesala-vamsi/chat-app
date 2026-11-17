@@ -9,6 +9,7 @@ import { getUserDetails } from '../redux/selectors/auth.selector'
 import { logout, logoutService } from '../redux/slices/authSlice'
 import { toast } from "react-toastify"
 import { socket } from '../utils/socket'
+import { playNotificationSound } from '../utils/notificationSound'
 import { createConversation, fetchConversations, incrementUnread } from '../redux/slices/conversationSlice'
 import { fetchMessages } from '../redux/slices/messageSlice'
 import { useNavigate } from 'react-router-dom'
@@ -107,7 +108,10 @@ const HomePage = () => {
       dispatch(incrementUnread({conversationId: data.conversationId, unreadCount: data.updatedCount}))
     }
 
-    const handleNotifyMessage = () => dispatch(fetchConversations())
+    const handleNotifyMessage = () => {
+      playNotificationSound()
+      dispatch(fetchConversations())
+    }
 
     socket.on("typing", handleTyping)
     socket.on("stopTyping", handleStopTyping)

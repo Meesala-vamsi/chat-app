@@ -41,6 +41,13 @@ messageSchema.index({
     createdAt: -1
 });
 
+// Loading a conversation's messages: filter by conversation, newest first by _id, optionally "before" a message id.
+// With this index MongoDB reads only the 20 messages it returns instead of the whole conversation.
+messageSchema.index({
+    conversationId: 1,
+    _id: -1
+});
+
 const Message = mongoose.model("Message", messageSchema);
 
 module.exports = Message;
